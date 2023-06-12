@@ -1328,6 +1328,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
+name = "scrape-web-by-virtual-printing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "headless_chrome",
+ "pdfium-render",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "sct"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,18 +1521,6 @@ dependencies = [
  "redox_syscall",
  "rustix",
  "windows-sys",
-]
-
-[[package]]
-name = "test-route"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "headless_chrome",
- "pdfium-render",
- "serde",
- "tokio",
 ]
 
 [[package]]
