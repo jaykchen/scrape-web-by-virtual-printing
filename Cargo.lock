@@ -1337,6 +1337,7 @@ dependencies = [
  "pdfium-render",
  "serde",
  "tokio",
+ "url",
 ]
 
 [[package]]

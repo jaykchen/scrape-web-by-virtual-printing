@@ -1,15 +1,15 @@
-
-use axum::{extract::Query, routing::get, Router};
-use serde::{de, Deserialize, Deserializer};
-use std::{fmt, str::FromStr};
 use anyhow::Result;
+use axum::{extract::Query, response::Json, routing::get, Router};
 use headless_chrome::{types::PrintToPdfOptions, Browser, LaunchOptions};
 use pdfium_render::prelude::*;
-
+use serde::{de, Deserialize, Deserializer};
+use std::{fmt, str::FromStr};
+use url::Url;
 
 #[tokio::main]
 async fn main() {
-    axum::Server::bind(&"10.0.0.75:5000".parse().unwrap())
+    // axum::Server::bind(&"10.0.0.75:5000".parse().unwrap())
+    axum::Server::bind(&"10.0.0.15:3000".parse().unwrap())
         .serve(app().into_make_service())
         .await
         .unwrap();
@@ -19,16 +19,36 @@ fn app() -> Router {
     Router::new().route("/", get(handler))
 }
 
-async fn handler(Query(params): Query<Params>) -> String {
-let url = params.url.unwrap_or("no url found".to_string());
-if let Ok(res) = get_text_headless(&url).await {
-
-    return res;
-}
-"no webpage text obtained".to_string()
-
+#[derive(Debug, serde::Serialize)]
+struct Response {
+    text: String,
 }
 
+async fn handler(Query(params): Query<Params>) -> Json<Response> {
+    if let Some(url) = params.url {
+        if let Err(_) = Url::from_str(&url) {
+            return Json(Response {
+                text: "parse target url failure".to_string(),
+            });
+        } else {
+            match get_text_headless(&url).await {
+                Ok(res) => {
+                    return Json(Response { text: res });
+                }
+
+                Err(_) => {
+                    return Json(Response {
+                        text: "failed to get text from webpage".to_string(),
+                    })
+                }
+            }
+        }
+    } else {
+        return Json(Response {
+            text: "probably ill-formed request".to_string(),
+        });
+    }
+}
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -96,7 +116,8 @@ async fn get_text_headless(url: &str) -> anyhow::Result<String> {
     //for more details
     let text = Pdfium::new(
         Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(
-            "/Users/jaykchen/Downloads/pdfium-mac-arm64/lib/libpdfium.dylib",
+            "/home/ubuntu/pdfium/lib/",
+            // "/Users/jaykchen/Downloads/pdfium-mac-arm64/lib/libpdfium.dylib",
         ))
         .or_else(|_| Pdfium::bind_to_system_library())?,
     )
