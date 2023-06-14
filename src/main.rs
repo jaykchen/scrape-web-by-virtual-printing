@@ -1,73 +1,111 @@
-use anyhow::Result;
-use axum::{extract::Query, response::Json, routing::get, Router};
+use axum::{
+    extract::{Json, Query},
+    http::{Response, StatusCode},
+    response::IntoResponse,
+    routing::{get, post},
+    Router,
+};
 use headless_chrome::{types::PrintToPdfOptions, Browser, LaunchOptions};
 use pdfium_render::prelude::*;
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::{fmt, str::FromStr};
 use url::Url;
 
 #[tokio::main]
 async fn main() {
-    // axum::Server::bind(&"10.0.0.75:5000".parse().unwrap())
-    axum::Server::bind(&"10.0.0.15:3000".parse().unwrap())
-        .serve(app().into_make_service())
+    // let addr = SocketAddr::from(([10, 0, 0, 75], 5000));
+    let addr = SocketAddr::from(([10, 0, 0, 15], 3000));
+    let app = Router::new()
+        .route("/", get(handler))
+        .route("/api", post(handle_post));
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
         .await
         .unwrap();
 }
 
-fn app() -> Router {
-    Router::new().route("/", get(handler))
+#[derive(Debug, Serialize, Deserialize)]
+struct Data {
+    url: String,
+}
+
+async fn handle_post(data: Json<Data>) -> impl IntoResponse {
+    println!("Received data: {:?}", data.url);
+
+    if let Err(_) = Url::from_str(&data.url) {
+        return Response::builder()
+            .status(StatusCode::OK)
+            .body("parse target url failure".to_string())
+            .unwrap();
+    } else {
+        match get_text_headless(&data.url).await {
+            Ok(res) => {
+                return Response::builder()
+                    .status(StatusCode::OK)
+                    .body(res)
+                    .unwrap();
+            }
+            Err(_) => {
+                return Response::builder()
+                    .status(StatusCode::OK)
+                    .body("failed to get text from webpage".to_string())
+                    .unwrap();
+            }
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
-struct Response {
+struct MyResponse {
     text: String,
 }
 
-async fn handler(Query(params): Query<Params>) -> Json<Response> {
-    if let Some(url) = params.url {
+async fn handler(params: Query<Params>) -> Json<MyResponse> {
+    if let Some(url) = &params.url {
         if let Err(_) = Url::from_str(&url) {
-            return Json(Response {
+            return Json(MyResponse {
                 text: "parse target url failure".to_string(),
             });
         } else {
             match get_text_headless(&url).await {
                 Ok(res) => {
-                    return Json(Response { text: res });
+                    return Json(MyResponse { text: res });
                 }
-
                 Err(_) => {
-                    return Json(Response {
+                    return Json(MyResponse {
                         text: "failed to get text from webpage".to_string(),
                     })
                 }
             }
         }
     } else {
-        return Json(Response {
+        return Json(MyResponse {
             text: "probably ill-formed request".to_string(),
         });
     }
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct Params {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     url: Option<String>,
 }
 
-/// Serde deserialization decorator to map empty Strings to None,
+/// Serde deserialization decorator to map empty Strings to None
 fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
 where
-    D: Deserializer<'de>,
+    D: serde::Deserializer<'de>,
     T: FromStr,
     T::Err: fmt::Display,
 {
     let opt = Option::<String>::deserialize(de)?;
     match opt.as_deref() {
         None | Some("") => Ok(None),
-        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+        Some(s) => FromStr::from_str(s)
+            .map_err(serde::de::Error::custom)
+            .map(Some),
     }
 }
 
@@ -100,7 +138,7 @@ async fn get_text_headless(url: &str) -> anyhow::Result<String> {
         margin_bottom: Some(0.1),
         margin_left: Some(0.1),
         margin_right: Some(0.1),
-        page_ranges: Some("1-2".to_string()),
+        // page_ranges: Some("1-2".to_string()),
         ignore_invalid_page_ranges: Some(true),
         prefer_css_page_size: Some(false),
         transfer_mode: None,
