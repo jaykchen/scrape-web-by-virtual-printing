@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::{fmt, str::FromStr};
 use url::Url;
+use readah::readability::helper::text_to_use;
 
 #[tokio::main]
 async fn main() {
@@ -40,7 +41,7 @@ async fn handle_post(data: Json<Data>) -> impl IntoResponse {
             .body("parse target url failure".to_string())
             .unwrap();
     } else {
-        match get_text_headless(&data.url).await {
+        match text_to_use(&data.url).await {
             Ok(res) => {
                 return Response::builder()
                     .status(StatusCode::OK)
