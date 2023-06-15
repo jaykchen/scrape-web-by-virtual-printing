@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 axum = "0.6.18"
-headless_chrome = { git = "https://github.com/rust-headless-chrome/rust-headless-chrome.git" }
+headless_chrome = { git = "https://github.com/rust-headless-chrome/rust-headless-chrome.git",features= ["fetch"]  }
 html2text = "0.6.0"
 http_req = "0.9.1"
 
