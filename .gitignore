@@ -1,1 +1,4 @@
 /target
+Cargo.lock
+headless-remote.sh
+/chrome
